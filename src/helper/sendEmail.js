@@ -17,7 +17,7 @@ async function sendEmail({to,body:text,subject}){
             from:process.env.EMAIL,
             to,
             subject,
-            text:body,
+            text
         });
 }
 
