@@ -21,7 +21,7 @@ const userSchema=new mongoose.Schema({
     password:{
         type:String
     },
-    gmailLink:{
+    "oauth-google":{
         type:String,
         sparse:true
     }
