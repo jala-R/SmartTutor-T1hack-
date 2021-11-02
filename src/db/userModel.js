@@ -1,5 +1,7 @@
+"use strict";
 const mongoose=require("mongoose"),
-    bcrypt=require("bcryptjs");
+    bcrypt=require("bcryptjs"),
+    jwt=require("jsonwebtoken");
 
 const userSchema=new mongoose.Schema({
     username:{
@@ -22,8 +24,10 @@ const userSchema=new mongoose.Schema({
         type:String
     },
     "oauth-google":{
-        type:String,
-        sparse:true
+        type:String
+    },
+    "login-key":{
+        type:String
     }
 
 })
@@ -36,8 +40,19 @@ userSchema.pre("save",async function(next){
     next();
 })
 
-
-
 const User=mongoose.model("User",userSchema);
+
+User.prototype.login=async function(password){
+    let hasedPassword=this.password;
+    if(!bcrypt.compareSync(password, hasedPassword))return false;
+    this["login-key"]=jwt.sign({id:this._id},process.env.JWTLOGINSECRET);
+    await this.save();
+    return true;
+}
+
+User.prototype.logout=async function(){
+    this["login-key"]=undefined;
+    await this.save();
+}
 
 module.exports=User;
