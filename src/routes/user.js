@@ -1,4 +1,5 @@
 "use strict";
+
 const express=require("express"),
     app=express.Router(),
     UserModel=require("../db/userModel"),
@@ -124,7 +125,24 @@ app.post("/signup-oath-google",oauthGoogleVerification,async (req,res)=>{
         res.status(400).send(err.message);
     }
 })
-app.get("/temp",(req,res)=>{
-    console.log(req.signedCookies);
+
+app.post("/login-password",async (req,res)=>{
+    try{
+        let user=await UserModel.findOne({email:req.body.email});
+        if(user==null)throw new Error("invaild credentials");
+        let stat=await user.login(req.body.password);
+        if(stat){
+            res.cookie("login",{token:user["login-key"]},{
+                httpOnly:true,
+                maxAge:1000*10*60*60,
+                signed:true
+            });
+            res.send();
+        }else{
+            throw new Error("invaild credentials");
+        }
+    }catch(err){
+        res.status(400).send(err.message);
+    }
 })
 module.exports=app;
