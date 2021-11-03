@@ -9,7 +9,8 @@ const userSchema=new mongoose.Schema({
         required:true,
         minLenght:[4,"min required 4 chars"],
         maxLenght:[10,"max can be 10 chars"],
-        unique:true
+        unique:true,
+        immutable:true
     },
     dob:{
         type:Date,
@@ -18,13 +19,15 @@ const userSchema=new mongoose.Schema({
     email:{
         type:String,
         required:true,
-        unique:true
+        unique:true,
+        immutable:true
     },
     password:{
         type:String
     },
     "oauth-google":{
-        type:String
+        type:String,
+        immutable:true
     },
     "login-key":{
         type:String
@@ -42,11 +45,15 @@ userSchema.pre("save",async function(next){
 
 const User=mongoose.model("User",userSchema);
 
+User.prototype.generateLoginToken=async function(){
+    this["login-key"]=jwt.sign({id:this._id},process.env.JWTLOGINSECRET);
+    await this.save();
+}
+
 User.prototype.login=async function(password){
     let hasedPassword=this.password;
     if(!bcrypt.compareSync(password, hasedPassword))return false;
-    this["login-key"]=jwt.sign({id:this._id},process.env.JWTLOGINSECRET);
-    await this.save();
+    await this.generateLoginToken();
     return true;
 }
 
