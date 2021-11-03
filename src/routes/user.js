@@ -7,7 +7,8 @@ const express=require("express"),
     jwt=require("jsonwebtoken"),
     hasEmailVerifed=require("../helper/hasEmailVerified"),
     axios=require("axios"),
-    oauthGoogleVerification=require("../helper/oauthGoogleVerification");
+    oauthGoogleVerification=require("../helper/oauthGoogleVerification"),
+    loginMiddleware=require("../helper/loginMiddleware");
 
 
 
@@ -64,15 +65,16 @@ app.get("/email-verifiaction/:token",async (req,res)=>{
 //==========GOOGLE====================
 
 app.get("/signup-oauth-google",(req,res)=>{
-    let url=`https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${process.env.GOOGLECLIENTID}&scope=openid%20email%20profile&redirect_uri=${req.protocol}%3A//${req.headers.host}/signup-oath-google-callback&state=aroundTrip`
+    let url=`https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${process.env.GOOGLECLIENTID}&scope=openid%20email%20profile&redirect_uri=${req.protocol}%3A//${req.headers.host}/signup-oauth-google-callback&state=aroundTrip`
     res.send(`<a href=${url}>google sigin</a>`);
 })
 
-app.get("/signup-oath-google-callback",(req,res)=>{
+
+app.get("/signup-oauth-google-callback",(req,res)=>{
     axios({
         url:"https://oauth2.googleapis.com/token",
         method:"post",
-        data:`code=${req.query.code}&client_id=${process.env.GOOGLECLIENTID}&client_secret=${process.env.GOOGLECLIENTSECRET}&redirect_uri=${req.protocol}%3A//${req.headers.host}/signup-oath-google-callback&grant_type=authorization_code`,
+        data:`code=${req.query.code}&client_id=${process.env.GOOGLECLIENTID}&client_secret=${process.env.GOOGLECLIENTSECRET}&redirect_uri=${req.protocol}%3A//${req.headers.host}/signup-oauth-google-callback&grant_type=authorization_code`,
   
         headers:{
             "Content-Type": "application/x-www-form-urlencoded"
@@ -109,6 +111,7 @@ app.get("/signup-oath-google-callback",(req,res)=>{
         );
     })
     .catch((err)=>{
+        console.log(err);
         res.send(err.message);
     })
 })
@@ -134,7 +137,7 @@ app.post("/login-password",async (req,res)=>{
         if(stat){
             res.cookie("login",{token:user["login-key"]},{
                 httpOnly:true,
-                maxAge:1000*10*60*60,
+                maxAge:1000*60*60*24*4,
                 signed:true
             });
             res.send();
@@ -145,4 +148,48 @@ app.post("/login-password",async (req,res)=>{
         res.status(400).send(err.message);
     }
 })
+
+app.get("/login-oauth-google",(req,res)=>{
+    let url=`https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${process.env.GOOGLECLIENTID}&scope=openid%20email%20profile&redirect_uri=${req.protocol}%3A//${req.headers.host}/login-oauth-google-callback&state=aroundTrip`
+    res.send(`<a href=${url}>google login</a>`);
+})
+
+app.get("/login-oauth-google-callback",async (req,res)=>{
+    try{
+        let {data}=await axios({
+            url:"https://oauth2.googleapis.com/token",
+            method:"post",
+            data:`code=${req.query.code}&client_id=${process.env.GOOGLECLIENTID}&client_secret=${process.env.GOOGLECLIENTSECRET}&redirect_uri=${req.protocol}%3A//${req.headers.host}/login-oauth-google-callback&grant_type=authorization_code`,
+      
+            headers:{
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        });
+
+        let {data:userData}=await axios({
+                url:"https://www.googleapis.com/oauth2/v2/userinfo",
+                method:"get",
+                headers:{
+                    Authorization:`Bearer ${data.access_token}`
+                }
+            });
+
+
+        let user=await UserModel.findOne({email:userData.email});
+        if(user==null||user["oauth-google"]!=userData.id)throw new Error("invaild credentials");
+        await user.generateLoginToken();
+        res.cookie("login",{token:user["login-key"]},{
+            httpOnly:true,
+            maxAge:1000*60*60*24*4,
+            signed:true
+        });
+        res.send("login successfull");
+    }catch(err){
+        res.send(err.message);
+    }
+})
+
+
+
+
 module.exports=app;
