@@ -27,7 +27,8 @@ const userSchema=new mongoose.Schema({
     },
     "oauth-google":{
         type:String,
-        immutable:true
+        immutable:true,
+        sparse:true
     },
     "login-key":{
         type:String

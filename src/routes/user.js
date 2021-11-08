@@ -175,7 +175,7 @@ app.get("/login-oauth-google-callback",async (req,res)=>{
             });
 
 
-        let user=await UserModel.findOne({email:userData.email});
+        let user=await UserModel.findOne({"oauth-google":userData.id});
         if(user==null||user["oauth-google"]!=userData.id)throw new Error("invaild credentials");
         await user.generateLoginToken();
         res.cookie("login",{token:user["login-key"]},{
